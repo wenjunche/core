@@ -410,7 +410,7 @@ function SystemApiHandler() {
 
     function writeToLog(identity, message, ack, nack) {
         var logData = message.payload || {};
-        var err = System.log(logData.level || '', logData.message || '');
+        var err = System.log(logData.level || '', logData, identity);
         if (err) {
             nack(err);
         } else {

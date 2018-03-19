@@ -16,6 +16,7 @@ limitations under the License.
 import { rvmMessageBus, ConsoleMessage } from '../rvm/rvm_message_bus';
 import { System } from '../api/system';
 import { setTimeout } from 'timers';
+import {createdNotes} from '../api/notifications/observable_sequences';
 /**
  * Interface for [sendToRVM] method
  */
@@ -58,7 +59,30 @@ function flushConsoleMessageQueue(): void {
     sendToRVM(obj);
 }
 
+function checkPrependLeadingZero(num: number): string {
+    let str = String(num);
+    if (str.length === 1) {
+        str = '0' + str;
+    }
+    return str;
+}
+
+function generateTimestamp(): string {
+    const date = new Date();
+    const month: string = checkPrependLeadingZero(date.getMonth() + 1);
+    const day: string = checkPrependLeadingZero(date.getDate());
+    const year: string = String(date.getFullYear()).slice(2);
+    const hour: string = checkPrependLeadingZero(date.getHours());
+    const minute: string = checkPrependLeadingZero(date.getMinutes());
+    const second: string = checkPrependLeadingZero(date.getSeconds());
+    // Format timestamp to match debug.log
+    return `${month}/${day}/${year} ${hour}:${minute}:${second}`;
+}
+
 export function addConsoleMessageToRVMMessageQueue(consoleMessage: ConsoleMessage): void {
+    if (!consoleMessage.timeStamp) {
+        consoleMessage.timeStamp = generateTimestamp();
+    }
     consoleMessageQueue.push(consoleMessage);
 
     const byteLength = Buffer.byteLength(consoleMessage.message, 'utf8');

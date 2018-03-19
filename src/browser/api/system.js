@@ -42,6 +42,7 @@ import * as plugins from '../plugins';
 import { fetchReadFile } from '../cached_resource_fetcher';
 import { createChromiumSocket, authenticateChromiumSocket } from '../transports/chromium_socket';
 import { authenticateFetch } from '../cached_resource_fetcher';
+import { addConsoleMessageToRVMMessageQueue } from '../rvm/utils';
 
 const defaultProc = {
     getCpuUsage: function() {
@@ -489,8 +490,15 @@ exports.System = {
             errorCallback('Error monitoring external process, pid: ' + options.pid);
         }
     },
-    log: function(level, message) {
-        return log.writeToLog(level, message, false);
+    log: function(level, logData, identity) {
+        const message = logData.message || '';
+        if (logData.appLog) {
+            const appConfigUrl = coreState.getConfigUrlByUuid(identity.uuid);
+            const logLevel = level === 'error' ? 2 : (level === 'warn' ? 1 : 0);
+            addConsoleMessageToRVMMessageQueue({level: logLevel, message, appConfigUrl });
+        } else {
+            return log.writeToLog(level, message, false);
+        }
     },
     setMinLogLevel: function(level) {
         try {

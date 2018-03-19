@@ -495,7 +495,7 @@ exports.System = {
         if (logData.appLog) {
             const appConfigUrl = coreState.getConfigUrlByUuid(identity.uuid);
             const logLevel = level === 'error' ? 2 : (level === 'warn' ? 1 : 0);
-            addConsoleMessageToRVMMessageQueue({level: logLevel, message, appConfigUrl });
+            addConsoleMessageToRVMMessageQueue({ level: logLevel, message, appConfigUrl });
         } else {
             return log.writeToLog(level, message, false);
         }

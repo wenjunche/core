@@ -58,7 +58,7 @@ class ExternalWindowEventAdapter {
         });
 
         ofEvents.on(route.externalWindow('bounds-changing', uuid, name), (bounds) => {
-            browserWindow.emit('bounds-changing', bounds);
+            browserWindow.emit('bounds-changing', {}, bounds);
         });
 
         ofEvents.on(route.externalWindow('visibility-changed', uuid, name), (visibility) => {
@@ -108,7 +108,7 @@ class ExternalWindowEventAdapter {
             }
         });
 
-        ofEvents.on(route.externalWindow('moving', uuid, name), () => {
+        ofEvents.on(route.externalWindow('moving', uuid, name), (movingBounds) => {
             if (disabledFrameState.leftButtonDown) {
                 let bounds = browserWindow.getBounds();
                 let mousePosition = MonitorInfo.getMousePosition();
@@ -132,7 +132,8 @@ class ExternalWindowEventAdapter {
                     disabledFrameState.cursorPrev = cursorCurr;
                 }
             } else {
-                browserWindow.emit('bounds-changed');
+                browserWindow.emit('bounds-changing', {}, movingBounds);
+                //                browserWindow.emit('bounds-changed');
             }
         });
 

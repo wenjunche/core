@@ -28,6 +28,7 @@ const WindowsMessages = {
     WM_DESTROY: 0x0002,
     WM_SETFOCUS: 0x0007,
     WM_KILLFOCUS: 0x0008,
+    WM_WINDOWPOSCHANGING: 0x0046,
     WM_WINDOWPOSCHANGED: 0x0047,
     WM_SYSCOMMAND: 0x0112,
     WM_NCLBUTTONDBLCLK: 0x00A3,
@@ -435,7 +436,13 @@ function externalWindowAction(identity, message, ack) {
             ofEvents.emit(route.externalWindow('sizing', uuid, name));
             break;
         case WindowsMessages.WM_MOVING:
-            ofEvents.emit(route.externalWindow('moving', uuid, name));
+            let bounds = {
+                x: payload.left,
+                y: payload.top,
+                width: payload.right - payload.left,
+                height: payload.bottom - payload.top
+            };
+            ofEvents.emit(route.externalWindow('moving', uuid, name), bounds);
             break;
         case WindowsMessages.WM_ENTERSIZEMOVE:
             ofEvents.emit(route.externalWindow('begin-user-bounds-change', uuid, name), {

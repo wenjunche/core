@@ -20,7 +20,7 @@ const framedOffset: Readonly<RectangleBase> = {
     width: -14
 };
 export const zeroDelta: Readonly<RectangleBase> = {x: 0, y: 0, height: 0, width: 0 };
-export function moveFromOpenFinWindow(ofWin: OpenFinWindow): Move {
+export function moveFromOpenFinWindow(ofWin: OpenFinWindow, original?: RectangleBase): Move {
     const win = ofWin.browserWindow;
     const delta = isWin10 && win._options.frame
         ? framedOffset
@@ -35,9 +35,10 @@ export function moveFromOpenFinWindow(ofWin: OpenFinWindow): Move {
     if (win._options.frame) {
         normalizedOptions.minWidth = Math.max(win._options.minWidth, 150);
     }
+
     return {
         ofWin,
-        rect: Rectangle.CREATE_FROM_BOUNDS(win.getBounds(), normalizedOptions).shift(delta),
+        rect: Rectangle.CREATE_FROM_BOUNDS(original ? original : win.getBounds(), normalizedOptions).shift(delta),
         offset: negate(delta)
     };
 }

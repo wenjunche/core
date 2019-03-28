@@ -82,10 +82,12 @@ class ExternalWindowEventAdapter {
             browserWindow.emit('begin-user-bounds-change');
         });
 
-        ofEvents.on(route.externalWindow('end-user-bounds-change', uuid, name), () => {
+        ofEvents.on(route.externalWindow('end-user-bounds-change', uuid, name), (endBounds) => {
             if (disabledFrameState.leftButtonDown) {
                 if (disabledFrameState.changeType !== -1) {
-                    browserWindow.emit('disabled-frame-bounds-changed', {}, browserWindow.getBounds(), disabledFrameState.changeType);
+                    browserWindow.emit('disabled-frame-bounds-changed', {},
+                        endBounds ? endBounds : browserWindow.getBounds(),
+                        disabledFrameState.changeType);
                 }
 
                 // reset
@@ -123,7 +125,9 @@ class ExternalWindowEventAdapter {
                 let xCursorDelta = cursorCurr.x - disabledFrameState.cursorPrev.x;
                 let yCursorDelta = cursorCurr.y - disabledFrameState.cursorPrev.y;
 
-                if (xCursorDelta !== 0 || yCursorDelta !== 0) {
+                if (movingBounds.original) {
+                    browserWindow.emit('disabled-frame-bounds-changing', {}, movingBounds, disabledFrameState.changeType);
+                } else if (xCursorDelta !== 0 || yCursorDelta !== 0) {
                     bounds.x = (cursorCurr.x - disabledFrameState.cursorStart.x) + disabledFrameState.boundsStart.x;
                     bounds.y = (cursorCurr.y - disabledFrameState.cursorStart.y) + disabledFrameState.boundsStart.y;
 

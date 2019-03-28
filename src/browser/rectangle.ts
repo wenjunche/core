@@ -23,6 +23,9 @@ export interface RectangleBase {
     width: number;
     height: number;
 }
+export interface MovingBounds extends RectangleBase {
+    original?: RectangleBase;
+}
 type EdgeCrossing = { mine: SideName, other: SideName, distance: number };
 export type EdgeCrossings = EdgeCrossing[];
 

@@ -5,7 +5,7 @@ import { BrowserWindow } from 'electron';
 import WindowGroups from './window_groups';
 const WindowTransaction = require('electron').windowTransaction;
 import { getRuntimeProxyWindow } from './window_groups_runtime_proxy';
-import { RectangleBase, Rectangle } from './rectangle';
+import { RectangleBase, Rectangle, MovingBounds } from './rectangle';
 import {
     moveFromOpenFinWindow,
     zeroDelta,
@@ -130,7 +130,7 @@ async function handleApiMove(win: OpenFinWindow, delta: RectangleBase) {
 
 function handleBatchedMove(moves: Move[], bringWinsToFront: boolean = false) {
     if (isWin32) {
-        const { flag: { noZorder, noSize, noActivate } } = WindowTransaction;
+        const { flag: { noZorder, noSize, noActivate} } = WindowTransaction;
         const flags = noZorder + noActivate;
         const wt = new WindowTransaction.Transaction(0);
         moves.forEach(({ ofWin, rect, offset }) => {
@@ -149,21 +149,25 @@ function handleBatchedMove(moves: Move[], bringWinsToFront: boolean = false) {
 const makeTranslate = (delta: RectangleBase) => ({ ofWin, rect, offset }: Move): Move => {
     return { ofWin, rect: rect.shift(delta), offset };
 };
-function getInitialPositions(win: OpenFinWindow) {
-    return WindowGroups.getGroup(win.groupUuid).map(moveFromOpenFinWindow);
+function getInitialPositions(win: OpenFinWindow, excludeSelf: boolean) {
+    return WindowGroups.getGroup(win.groupUuid).filter(w => {
+        return (!excludeSelf || w.id !== win.id);
+    }).map(w => {
+        return moveFromOpenFinWindow(w);
+    });
 }
 function handleBoundsChanging(
     win: OpenFinWindow,
     e: any,
-    rawPayloadBounds: RectangleBase,
+    rawPayloadBounds: MovingBounds,
     changeType: ChangeType
 ): Move[] {
-    const initialPositions: Move[] = getInitialPositions(win);
+    const initialPositions: Move[] = getInitialPositions(win, !!rawPayloadBounds.original);
     let moves: Move[];
-    const startMove = moveFromOpenFinWindow(win); //Corrected
+    const startMove = moveFromOpenFinWindow(win, rawPayloadBounds.original); //Corrected
     const start = startMove.rect;
     const { offset } = startMove;
-    const end = normalizeExternalBounds(rawPayloadBounds, offset); //Corrected
+    const end = normalizeExternalBounds(rawPayloadBounds, offset);
     switch (changeType) {
         case ChangeType.POSITION:
             moves = handleMoveOnly(start, end, initialPositions);
@@ -273,8 +277,12 @@ function handleResizeOnly(startMove: Move, end: RectangleBase, initialPositions:
 
 function handleMoveOnly(start: Rectangle, end: RectangleBase, initialPositions: Move[]) {
     const delta = start.delta(end);
-    return initialPositions
-        .map(makeTranslate(delta));
+    if (delta.x !== 0 || delta.y !== 0 || delta.height !== 0 || delta.width !== 0) {
+        return initialPositions
+            .map(makeTranslate(delta));
+    } else {
+        return [];
+    }
 }
 
 export function getGroupInfoCacheForWindow(win: OpenFinWindow): GroupInfo {
@@ -295,15 +303,20 @@ export function getGroupInfoCacheForWindow(win: OpenFinWindow): GroupInfo {
 
 export function addWindowToGroup(win: OpenFinWindow) {
     win.browserWindow.setUserMovementEnabled(false);
-    const listener = async (e: any, rawPayloadBounds: RectangleBase, changeType: ChangeType) => {
+    const listener = async (e: any, rawPayloadBounds: MovingBounds, changeType: ChangeType) => {
         try {
             const groupInfo = getGroupInfoCacheForWindow(win);
             if (groupInfo.boundsChanging) {
-                groupInfo.payloadCache.push([win, e, rawPayloadBounds, changeType]);
+                if (rawPayloadBounds.original) {
+                    const moves = handleBoundsChanging(win, e, rawPayloadBounds, changeType);
+                    handleBatchedMove(moves);
+                } else {
+                    groupInfo.payloadCache.push([win, e, rawPayloadBounds, changeType]);
+                }
             } else {
                 const uuid = win.uuid;
                 const name = win.name;
-                const eventBounds = getEventBounds(win.browserWindow.getBounds());
+                const eventBounds = getEventBounds(rawPayloadBounds.original ? rawPayloadBounds.original : win.browserWindow.getBounds());
                 const moved = new Set<OpenFinWindow>();
                 groupInfo.boundsChanging = true;
                 await raiseEvent(win, 'begin-user-bounds-changing', { ...eventBounds, windowState: getState(win.browserWindow) });
@@ -325,11 +338,11 @@ export function addWindowToGroup(win: OpenFinWindow) {
                     }
                 }, 16);
                 win.browserWindow
-                .once('disabled-frame-bounds-changed', async (e: any, rawPayloadBounds: RectangleBase, changeType: ChangeType) => {
+                .once('disabled-frame-bounds-changed', async (e: any, rawPayloadBounds: MovingBounds, changeType: ChangeType) => {
                     try {
-                        groupInfo.boundsChanging = false;
                         clearInterval(groupInfo.interval);
                         groupInfo.payloadCache = [];
+                        groupInfo.boundsChanging = false;
                         const moves = handleBoundsChanging(win, e, rawPayloadBounds, changeType);
                         handleBatchedMove(moves);
                         const promises: Promise<void>[] = [];

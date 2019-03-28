@@ -376,6 +376,9 @@ function registerExternalWindow(identity, message, ack) {
         uuid: payload.uuid,
         hwnd: payload.hwnd
     };
+    if (payload.options) {
+        childWindowOptions = Object.assign(childWindowOptions, payload.options);
+    }
     let parent = coreState.getWindowByUuidName(payload.uuid, payload.uuid);
     let parentBw = parent && parent.browserWindow;
     let childBw = new BrowserWindow(childWindowOptions);
@@ -442,6 +445,14 @@ function externalWindowAction(identity, message, ack) {
                 width: payload.right - payload.left,
                 height: payload.bottom - payload.top
             };
+            if (payload.original) {
+                bounds.original = {
+                    x: payload.original.left,
+                    y: payload.original.top,
+                    width: payload.original.right - payload.original.left,
+                    height: payload.original.bottom - payload.original.top
+                };
+            }
             ofEvents.emit(route.externalWindow('moving', uuid, name), bounds);
             break;
         case WindowsMessages.WM_ENTERSIZEMOVE:
@@ -451,7 +462,17 @@ function externalWindowAction(identity, message, ack) {
             });
             break;
         case WindowsMessages.WM_EXITSIZEMOVE:
-            ofEvents.emit(route.externalWindow('end-user-bounds-change', uuid, name));
+            let endBounds;
+            if (payload.top) {
+                endBounds = {
+                    x: payload.left,
+                    y: payload.top,
+                    width: payload.right - payload.left,
+                    height: payload.bottom - payload.top
+                };
+                endBounds.original = Object.assign({}, endBounds);
+            }
+            ofEvents.emit(route.externalWindow('end-user-bounds-change', uuid, name), endBounds);
             break;
         default:
             // Do nothing
